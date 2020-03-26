@@ -1,0 +1,3 @@
+[submodule "partition/cut-pursuit"]
+	path = partition/cut-pursuit
+	url = git@github.com:loicland/cut-pursuit.git
