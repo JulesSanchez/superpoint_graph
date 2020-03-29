@@ -39,6 +39,9 @@ if args.dataset == 's3dis':
 elif args.dataset == 'sema3d':
     folders = ["test_reduced/", "test_full/", "train/"]
     n_labels = 8
+elif args.dataset == 'ParisLille3D':
+    folders =["ajaccio_2/","Lille1_1/","Lille1_2/","Lille2/","Paris/","ajaccio_57/", "dijon_9/"]
+    n_labels = 10
 elif args.dataset == 'custom_dataset':
     folders = ["train/", "test/"]
     n_labels = 10 #number of classes
@@ -76,6 +79,11 @@ for folder in folders:
                 if os.path.isdir(os.path.join(data_folder,o))]
     elif args.dataset=='sema3d':
         files = glob.glob(data_folder+"*.txt")
+    elif args.dataset=="ParisLille3D":
+        files = []
+        for file in os.listdir(data_folder):
+            if file.endswith(".ply"):
+                files.append(file)
     elif args.dataset=='custom_dataset':
         #list all ply files in the folder
         files = glob.glob(data_folder+"*.ply")
@@ -95,13 +103,18 @@ for folder in folders:
             cloud_file  = cloud_folder     + file_name
             fea_file    = fea_folder       + file_name + '.h5'
             spg_file    = spg_folder       + file_name + '.h5'
-        elif args.dataset=='sema3d':
+        elif args.dataset=='sema3
             file_name_short = '_'.join(file_name.split('_')[:2])
             data_file  = data_folder + file_name + ".txt"
             label_file = data_folder + file_name_short + ".labels"
             cloud_file = cloud_folder+ file_name_short
             fea_file   = fea_folder  + file_name_short + '.h5'
             spg_file   = spg_folder  + file_name_short + '.h5'
+        elif args.dataset=='ParisLille3D':
+            data_file   = data_folder      + file_name + '.ply'
+            cloud_file  = cloud_folder     + file_name
+            fea_file    = fea_folder       + file_name + '.h5'
+            spg_file    = spg_folder       + file_name + '.h5'
         elif args.dataset=='custom_dataset':
             #adapt to your hierarchy. The following 4 files must be defined
             data_file   = data_folder      + file_name + '.ply' #or .las
@@ -130,6 +143,20 @@ for folder in folders:
                 else:
                     xyz, rgb = read_semantic3d_format(data_file, 0, '', args.voxel_width, args.ver_batch)
                     labels = []
+            elif args.dataset=='ParisLille3D':
+                #No RGB information
+                rgb = []
+                has_labels = ["Lille1_1/", "Lille1_2/", "Lille2/", "Paris/"]
+
+                if folder in has_labels:
+                    xyz, labels = read_ParisLille3D_format(data_file)
+                    if args.voxel_width > 0:
+                        xyz, _, labels, _ = libply_c.prune(xyz.astype('f4'), args.voxel_width, np.zeros(xyz.shape,dtype='u1'), labels.astype('uint8'), np.zeros(1, dtype='uint8') , n_labels, 0)
+                else:
+                    xyz = read_ParisLille3D_format(data_file)
+                    if args.voxel_width > 0:
+                        xyz = libply_c.prune(xyz.astype('f4'), args.voxel_width, np.zeros(xyz.shape,dtype='u1'), np.array(1,dtype='u1'), np.array(1,dtype='u1'),0, 0)[0]
+                    labels = []
             elif args.dataset=='custom_dataset':
                 #implement in provider.py your own read_custom_format outputing xyz, rgb, labels
                 #example for ply files
@@ -140,8 +167,7 @@ for folder in folders:
                     #an example of pruning without labels
                     xyz, rgb, labels = libply_c.prune(xyz, args.voxel_width, rgb, np.array(1,dtype='u1'), 0)
                     #another one without rgb information nor labels
-                    xyz = libply_c.prune(xyz, args.voxel_width, np.zeros(xyz.shape,dtype='u1'), np.array(1,dtype='u1'), 0)[0]
-                #if no labels available simply set here labels = []
+                    xyz = libply_c.prune(xyz, args.voxel_width, np.zeros(xyz.shape,dtype='u1'), np.array(1,dtype='u1'), 0)[0]                #if no labels available simply set here labels = []
                 #if no rgb available simply set here rgb = [] and make sure to not use it later on
             start = timer()
             #---compute 10 nn graph-------
@@ -165,6 +191,9 @@ for folder in folders:
                 features = np.hstack((geof, rgb/255.)).astype('float32')#add rgb as a feature for partitioning
                 features[:,3] = 2. * features[:,3] #increase importance of verticality (heuristic)
             elif args.dataset=='sema3d':
+                 features = geof
+                 geof[:,3] = 2. * geof[:, 3]
+            elif args.dataset=='ParisLille3D':
                  features = geof
                  geof[:,3] = 2. * geof[:, 3]
             elif args.dataset=='custom_dataset':

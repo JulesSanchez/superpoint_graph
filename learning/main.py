@@ -65,11 +65,12 @@ def main():
     parser.add_argument('--resume', default='', help='Loads a previously saved model.')
     parser.add_argument('--db_train_name', default='train')
     parser.add_argument('--db_test_name', default='test')
-    parser.add_argument('--use_val_set', type=int, default=0)
+    parser.add_argument('--use_val_set', type=int, default=1)
     parser.add_argument('--SEMA3D_PATH', default='datasets/semantic3d')
     parser.add_argument('--S3DIS_PATH', default='datasets/s3dis')
     parser.add_argument('--VKITTI_PATH', default='datasets/vkitti')
     parser.add_argument('--CUSTOM_SET_PATH', default='datasets/custom_set')
+    parser.add_argument('--PARISLILLE3D_PATH', default='datasets/ParisLille-3D')
     parser.add_argument('--use_pyg', default=0, type=int, help='Wether to use Pytorch Geometric for graph convolutions')
 
     # Model
@@ -104,7 +105,7 @@ def main():
     parser.add_argument('--ptn_npts', default=128, type=int, help='Number of input points for PointNet.')
     parser.add_argument('--ptn_widths', default='[[64,64,128,128,256], [256,64,32]]', help='PointNet widths')
     parser.add_argument('--ptn_widths_stn', default='[[64,64,128], [128,64]]', help='PointNet\'s Transformer widths')
-    parser.add_argument('--ptn_nfeat_stn', default=11, type=int, help='PointNet\'s Transformer number of input features')
+    parser.add_argument('--ptn_nfeat_stn', default=8, type=int, help='PointNet\'s Transformer number of input features')
     parser.add_argument('--ptn_prelast_do', default=0, type=float)
     parser.add_argument('--ptn_mem_monger', default=1, type=int, help='Bool, save GPU memory by recomputing PointNets in back propagation.')
 
@@ -149,6 +150,10 @@ def main():
         import vkitti_dataset
         dbinfo = vkitti_dataset.get_info(args)
         create_dataset = vkitti_dataset.get_datasets
+    elif args.dataset=='ParisLille3D':
+        import ParisLille3D_dataset
+        dbinfo = ParisLille3D_dataset.get_info(args)
+        create_dataset = ParisLille3D_dataset.get_datasets
     elif args.dataset=='custom_dataset':
         import custom_dataset #<- to write!
         dbinfo = custom_dataset.get_info(args)
@@ -188,7 +193,6 @@ def main():
         # iterate over dataset in batches
         for bidx, (targets, GIs, clouds_data) in enumerate(loader):
             t_loader = 1000*(time.time()-t0)
-
             model.ecc.set_info(GIs, args.cuda)
             label_mode_cpu, label_vec_cpu, segm_size_cpu = targets[:,0], targets[:,2:], targets[:,1:].sum(1)
             if args.cuda:
@@ -198,11 +202,10 @@ def main():
 
             optimizer.zero_grad()
             t0 = time.time()
-
             embeddings = ptnCloudEmbedder.run(model, *clouds_data)
             outputs = model.ecc(embeddings)
             
-            loss = nn.functional.cross_entropy(outputs, Variable(label_mode), weight=dbinfo["class_weights"])
+            loss = nn.functional.cross_entropy(outputs, Variable(label_mode))
 
             loss.backward()
             ptnCloudEmbedder.bw_hook()
@@ -253,7 +256,7 @@ def main():
             embeddings = ptnCloudEmbedder.run(model, *clouds_data)
             outputs = model.ecc(embeddings)
             
-            loss = nn.functional.cross_entropy(outputs, Variable(label_mode), weight=dbinfo["class_weights"])
+            loss = nn.functional.cross_entropy(outputs, Variable(label_mode))
             loss_meter.add(loss.item()) 
 
             o_cpu, t_cpu, tvec_cpu = filter_valid(outputs.data.cpu().numpy(), label_mode_cpu.numpy(), label_vec_cpu.numpy())
@@ -421,7 +424,6 @@ def create_model(args, dbinfo):
 
     nfeat = args.ptn_widths[1][-1]
     model.ecc = graphnet.GraphNetwork(args.model_config, nfeat, [dbinfo['edge_feats']] + args.fnet_widths, args.fnet_orthoinit, args.fnet_llbias,args.fnet_bnidx, args.edge_mem_limit, use_pyg = args.use_pyg, cuda = args.cuda)
-
     model.ptn = pointnet.PointNet(args.ptn_widths[0], args.ptn_widths[1], args.ptn_widths_stn[0], args.ptn_widths_stn[1], dbinfo['node_feats'], args.ptn_nfeat_stn, prelast_do=args.ptn_prelast_do)
 
     print('Total number of parameters: {}'.format(sum([p.numel() for p in model.parameters()])))

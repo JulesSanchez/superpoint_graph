@@ -169,6 +169,19 @@ def get_color_from_label(object_label, dataset):
             12: [   0, 200, 255], # Car-> bright blue
             13: [ 255, 128,   0], # Van-> orange
             }.get(object_label, -1)
+    elif (dataset=="ParisLille3D"):
+        object_label =  {
+            0: [0   ,   0,   0], #unlabelled .->. black
+            1: [ 200, 200, 200], 
+            2: [   0,  70,   0], 
+            3: [   0, 255,   0], 
+            4: [ 255, 255,   0], 
+            5: [ 255,   0,   0], 
+            6: [ 148,   0, 211], 
+            7: [   0, 255, 255], 
+            8: [ 255,   8, 127], 
+            9: [ 0,   0, 127], 
+            }.get(object_label, -1)
     elif (dataset == 'custom_dataset'): #Custom set
         object_label =  {
             0: [0   ,   0,   0], #unlabelled .->. black
@@ -368,6 +381,17 @@ def read_semantic3d_format2(data_file, n_class, file_label_path, voxel_width, ve
     else:
         return xyz, rgb
 #------------------------------------------------------------------------------
+def read_ParisLille3D_format(filename):
+    """convert from a ply file. include the label and the object number"""
+    #---read the ply file--------
+    plydata = PlyData.read(filename)
+    xyz = np.stack([plydata['vertex'][n] for n in['x', 'y', 'z']], axis=1)
+    try:
+        labels = plydata['vertex']['class']
+        return xyz, labels
+    except ValueError:
+        return xyz
+#------------------------------------------------------------------------------
 def read_ply(filename):
     """convert from a ply file. include the label and the object number"""
     #---read the ply file--------
@@ -532,7 +556,10 @@ def read_features(file_name):
     #---fill the arrays---
     geof = data_file["geof"][:]
     xyz = data_file["xyz"][:]
-    rgb = data_file["rgb"][:]
+    try:
+        rgb = data_file["rgb"][:]
+    except:
+        rgb = []
     source = data_file["source"][:]
     target = data_file["target"][:]
 

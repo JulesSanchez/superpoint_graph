@@ -3,3 +3,6 @@
 *.vscode
 *.so
 partition/ply_c/build
+datasets/*
+partition/ply_c/*
+partition/cut-pursuit/*
