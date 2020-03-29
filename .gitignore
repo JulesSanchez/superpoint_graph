@@ -5,6 +5,7 @@
 partition/ply_c/build
 datasets/*
 partition/ply_c/*
+results/*
 partition/cut-pursuit/*
 partition/ply_c/CMakeCache.txt
 partition/ply_c/CMakeFiles/

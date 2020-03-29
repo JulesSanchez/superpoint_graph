@@ -23,24 +23,26 @@ import torchnet as tnt
 import h5py
 import spg
 
+VAL_RATIO = 0.3
 
 def get_datasets(args, test_seed_offset=0):
     """build training and testing set"""
-    train_names  =["Lille1_1/","Lille1_2/","Paris/"]
-    val_names = ["Lille2/"]
-    test_names = ["ajaccio_2/","ajaccio_57/", "dijon_9/"]
+    all_directories  =["Lille1_1/","Lille1_2/","Paris/", "Lille2/"]
     
     # Load superpoints graphs
     testlist, trainlist, validlist = [], [], []
-    for n in train_names:
-        for k in os.listdir(args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n ):
-            trainlist.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+ '.h5', True))
-    for n in test_names:
-        for k in os.listdir(args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n ):
-            testlist.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+'.h5', True))
-    for n in val_names:
-        for k in os.listdir(args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n ):
-            validlist.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+'.h5', True))
+    for n in all_directories:
+        nameFiles = os.listdir(args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n )
+        N_parts = len(nameFiles)
+        k_val = int(VAL_RATIO*N_parts)
+        starting_point = np.random.randint(0,N_parts-k_val-1)
+        k_vals = [nameFiles[i] for i in range(starting_point, starting_point+k_val)]
+        for k in nameFiles:
+            if k in k_vals:
+                validlist.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+'.h5', True))
+                testlist.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+'.h5', True))
+            else :
+                trainlist.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+ '.h5', True))
 
     # Normalize edge features
     if args.spg_attribs01:
@@ -79,19 +81,18 @@ def get_info(args):
                         9 :"natural - vegetation"}
     }
 
-def preprocess_pointclouds(SEMA3D_PATH):
+def preprocess_pointclouds(PARISLILLE3D_PATH):
     """ Preprocesses data by splitting them by components and normalizing."""
 
     for n in ["ajaccio_2/","Lille1_1/","Lille1_2/","Lille2/","Paris/","ajaccio_57/", "dijon_9/"]:
-        pathP = '{}/parsed/{}'.format(SEMA3D_PATH, n)
-        pathD = '{}/features/{}'.format(SEMA3D_PATH, n)
-        pathC = '{}/superpoint_graphs/{}'.format(SEMA3D_PATH, n)
+        pathP = '{}/parsed/{}'.format(PARISLILLE3D_PATH, n)
+        pathD = '{}/features/{}'.format(PARISLILLE3D_PATH, n)
+        pathC = '{}/superpoint_graphs/{}'.format(PARISLILLE3D_PATH, n)
         if not os.path.exists(pathP):
             os.makedirs(pathP)
         random.seed(0)
 
         for file in os.listdir(pathC):
-            print(file)
             if file.endswith(".h5"):
                 f = h5py.File(pathD + file, 'r')
                 xyz = f['xyz'][:]
