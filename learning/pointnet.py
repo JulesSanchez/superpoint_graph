@@ -122,7 +122,6 @@ class PointNet(nn.Module):
             T = self.stn(input[:,:self.nfeat_stn,:])
             xy_transf = torch.bmm(input[:,:2,:].transpose(1,2), T).transpose(1,2)
             input = torch.cat([xy_transf, input[:,2:,:]], 1)
-
         input = self.convs(input)
         input = nnf.max_pool1d(input, input.size(2)).squeeze(2)
         if input_global is not None:
@@ -151,7 +150,6 @@ class CloudEmbedder():
             clouds, clouds_global, idx_valid = clouds.cuda(), clouds_global.cuda(), idx_valid.cuda()
         clouds, clouds_global = Variable(clouds, volatile=not model.training), Variable(clouds_global, volatile=not model.training)
         #print('Ptn with', clouds.size(0), 'clouds')
-
         out = model.ptn(clouds, clouds_global)
         descriptors = Variable(out.data.new(clouds_flag.size(0), out.size(1)).fill_(0))
         descriptors.index_copy_(0, Variable(idx_valid), out)

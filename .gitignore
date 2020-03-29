@@ -6,3 +6,9 @@ partition/ply_c/build
 datasets/*
 partition/ply_c/*
 partition/cut-pursuit/*
+partition/ply_c/CMakeCache.txt
+partition/ply_c/CMakeFiles/
+partition/ply_c/Makefile
+partition/ply_c/cmake_install.cmake
+
+S3DIS

@@ -1,0 +1,1 @@
+'learning/main.py' --dataset 'ParisLille3D' --epochs '500' --lr_steps '[350, 400, 450]' --test_nth_epoch '100' --model_config 'gru_10,f_10' --pc_attribs 'xyzelpsv' --odir 'results/ParisLille-3D/trainval_best'

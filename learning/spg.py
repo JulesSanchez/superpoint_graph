@@ -230,7 +230,6 @@ def load_superpoint(args, fname, id, train, test_seed_offset):
         if 'XYZ' in args.pc_attribs: columns.append(P[:,11:14])
         if 'd' in args.pc_attribs: columns.append(P[:,14])
         P = np.concatenate(columns, axis=1)
-
     if train:
         P = augment_cloud(P, args)
     return P, np.array([diameter], dtype=np.float32)
