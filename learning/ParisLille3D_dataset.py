@@ -23,12 +23,11 @@ import torchnet as tnt
 import h5py
 import spg
 
-VAL_RATIO = 0.3
 
 def get_datasets(args, test_seed_offset=0):
     """build training and testing set"""
     all_directories  =["Lille1_1/","Lille1_2/","Paris/", "Lille2/"]
-    
+    VAL_RATIO = args.val_split
     # Load superpoints graphs
     testlist, trainlist, validlist = [], [], []
     for n in all_directories:

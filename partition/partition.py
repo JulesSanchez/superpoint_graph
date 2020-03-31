@@ -103,7 +103,7 @@ for folder in folders:
             cloud_file  = cloud_folder     + file_name
             fea_file    = fea_folder       + file_name + '.h5'
             spg_file    = spg_folder       + file_name + '.h5'
-        elif args.dataset=='sema3
+        elif args.dataset=='sema3':
             file_name_short = '_'.join(file_name.split('_')[:2])
             data_file  = data_folder + file_name + ".txt"
             label_file = data_folder + file_name_short + ".labels"
