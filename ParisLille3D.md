@@ -29,9 +29,10 @@ python partition/partition.py --dataset ParisLille3D --ROOT_PATH datasets/ParisL
 python learning/ParisLille3D_dataset.py --PARISLILLE3D_PATH datasets/ParisLille-3D
 ```
 * Train from scratch (we assume a GPU is available)
-```bash
-CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --epochs 150 --lr_steps '[35, 70, 105]' --test_nth_epoch 300 --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-3 --val_split 0.3 --loss_weights none
-```
+    ```bash
+    CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --epochs 150 --lr_steps '[35, 70, 105]' --test_nth_epoch 300 --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-3 --val_split 0.3 --loss_weights none
+    ```  
+  * The loss function can be specified with the `--loss` optional argument. Accepted values are `crossentropy`, `dice` and `combined`
 * Inference on test set (we assume a GPU is available)
 ```bash
 CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-2 --infer 1
