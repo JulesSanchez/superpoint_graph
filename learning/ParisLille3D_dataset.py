@@ -154,7 +154,6 @@ def preprocess_pointclouds(PARISLILLE3D_PATH):
 
                         hf.create_dataset(name='{:d}'.format(c), data=P[idx,...])
     path = '{}/parsed/'.format(PARISLILLE3D_PATH)
-    print(class_count)
     data_file = h5py.File(path+'class_count.h5', 'w')
     data_file.create_dataset('class_count', data=class_count, dtype='int')
 

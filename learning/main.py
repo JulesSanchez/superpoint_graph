@@ -371,9 +371,9 @@ def main():
     if not args.infer:
         for epoch in range(args.start_epoch, args.epochs):
             print('Epoch {}/{} ({}):'.format(epoch, args.epochs, args.odir))
-            scheduler.step()
 
             acc, loss, oacc, avg_iou = train()
+            scheduler.step()
 
             print(TRAIN_COLOR + '-> Train Loss: %1.4f   Train accuracy: %3.2f%%' % (loss, acc))
 
