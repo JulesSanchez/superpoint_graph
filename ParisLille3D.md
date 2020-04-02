@@ -30,7 +30,7 @@ python learning/ParisLille3D_dataset.py --PARISLILLE3D_PATH datasets/ParisLille-
 
 * Train from scratch (we assume a GPU is available)
 
-CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --epochs 150 --lr_steps '[35, 70, 105]' --test_nth_epoch 300 --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-2 --val_split 0.4
+CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --epochs 150 --lr_steps '[35, 70, 105]' --test_nth_epoch 300 --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-3 --val_split 0.3 --loss_weights none
 
 * Inference on test set (we assume a GPU is available)
 

@@ -86,10 +86,10 @@ def get_info(args):
         weights = np.ones((10,),dtype='f4')
     else:
         weights = h5py.File(args.PARISLILLE3D_PATH + "/parsed/class_count.h5")["class_count"][:].astype('f4')
-        weights = weights.mean()/weights
+        weights = weights.mean()/(weights+1e-6)
     if args.loss_weights == 'sqrt':
         weights = np.sqrt(weights)
-
+    weights = torch.from_numpy(weights).cuda() if args.cuda else torch.from_numpy(weights)
     return {
         'node_feats': 11 if args.pc_attribs=='' else len(args.pc_attribs),
         'edge_feats': edge_feats,
@@ -109,7 +109,7 @@ def get_info(args):
 
 def preprocess_pointclouds(PARISLILLE3D_PATH):
     """ Preprocesses data by splitting them by components and normalizing."""
-
+    class_count = np.zeros((10,),dtype='int')
     for n in ["ajaccio_2/","Lille1_1/","Lille1_2/","Lille2/","Paris/","ajaccio_57/", "dijon_9/"]:
         pathP = '{}/parsed/{}'.format(PARISLILLE3D_PATH, n)
         pathD = '{}/features/{}'.format(PARISLILLE3D_PATH, n)
@@ -121,6 +121,12 @@ def preprocess_pointclouds(PARISLILLE3D_PATH):
         for file in os.listdir(pathC):
             if file.endswith(".h5"):
                 f = h5py.File(pathD + file, 'r')
+                if n in ["Lille1_1/","Lille1_2/","Lille2/","Paris/"]:
+                    labels = f['labels'][:]
+                    hard_labels = np.argmax(labels[:,1:],1)
+                    label_count = np.bincount(hard_labels, minlength=9)
+                    class_count[1:] = class_count[1:] + label_count
+
                 xyz = f['xyz'][:]
                 #rgb = f['rgb'][:].astype(np.float)
                 rgb = np.empty_like(xyz)
@@ -147,6 +153,9 @@ def preprocess_pointclouds(PARISLILLE3D_PATH):
                             idx = idx[ii]
 
                         hf.create_dataset(name='{:d}'.format(c), data=P[idx,...])
+    path = '{}/parsed/'.format(PARISLILLE3D_PATH)
+    data_file = h5py.File(path+'class_count.h5', 'w')
+    data_file.create_dataset('class_count', data=class_count, dtype='int')
 
 if __name__ == "__main__":
     import argparse
