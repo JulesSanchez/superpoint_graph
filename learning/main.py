@@ -45,18 +45,19 @@ def generalized_dice_loss(prediction: torch.Tensor, labels: torch.LongTensor, we
     Arguments
     ---------
     prediction
-        Tensor of predictions of shape (B, K, N) with K classes, and N points.
+        Tensor of predictions of shape (N, K) with K classes, and N points.
     labels
-        Tensor of true labels, of shape (B, N)
+        Tensor of true labels, of shape (N,)
     """
     EPSILON = 1e-8
+    # import ipdb; ipdb.set_trace()
     y_pred: torch.Tensor = nn.functional.softmax(prediction, dim=1)
     num_classes: int = y_pred.shape[1]  # should always be > 1 in our case
     labels_one_hot: torch.LongTensor = nn.functional.one_hot(labels, num_classes)  # entries are 0 or 1
-    dims_ = (1, 2)  # dims to sum over
+    dims_ = (0,1,)  # dims to sum over
     numerator = (y_pred * labels_one_hot).sum(dim=dims_)
     denominator = (y_pred + labels_one_hot).sum(dim=dims_) + EPSILON
-    return 1 - 2 * numerator / denominator
+    return 1 - 2 * torch.mean(numerator / denominator)
 
 
 def combined_loss(prediction: torch.Tensor, labels: torch.LongTensor, weight=None):
@@ -92,7 +93,7 @@ def main():
     parser.add_argument('--loss_weights', default='none', help='[none, proportional, sqrt] how to weight the loss function')
     parser.add_argument('--val_split', default=0.3, type=float)
     parser.add_argument('--infer', default=0, type=bool)
-    parser.add_argument('--loss', default='crossentropy', choices=LOSSES_DICT.keys(), type=bool)
+    parser.add_argument('--loss', default='crossentropy', choices=LOSSES_DICT.keys(), type=str)
 
     # Learning process arguments
     parser.add_argument('--cuda', default=1, type=int, help='Bool, use cuda')
@@ -166,6 +167,8 @@ def main():
     
     loss_func = LOSSES_DICT[args.loss]
 
+
+    print("Using loss function {:s}".format(args.loss))
     print('Will save to ' + args.odir)
     if not os.path.exists(args.odir):
         os.makedirs(args.odir)
