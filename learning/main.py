@@ -50,7 +50,8 @@ def main():
     parser.add_argument('--optim', default='adam', help='Optimizer: sgd|adam')
     parser.add_argument('--grad_clip', default=1, type=float, help='Element-wise clipping of gradient. If 0, does not clip')
     parser.add_argument('--loss_weights', default='none', help='[none, proportional, sqrt] how to weight the loss function')
-    parser.add_argument('--val_split', default=0.3, type=int)
+    parser.add_argument('--val_split', default=0.3, type=float)
+    parser.add_argument('--infer', default=0, type=bool)
 
     # Learning process arguments
     parser.add_argument('--cuda', default=1, type=int, help='Bool, use cuda')
@@ -154,7 +155,10 @@ def main():
     elif args.dataset=='ParisLille3D':
         import ParisLille3D_dataset
         dbinfo = ParisLille3D_dataset.get_info(args)
-        create_dataset = ParisLille3D_dataset.get_datasets
+        if not args.infer:
+            create_dataset = ParisLille3D_dataset.get_datasets
+        else:
+            create_dataset = ParisLille3D_dataset.get_datasets_inference
     elif args.dataset=='custom_dataset':
         import custom_dataset #<- to write!
         dbinfo = custom_dataset.get_info(args)
@@ -171,9 +175,13 @@ def main():
         optimizer = create_optimizer(args, model)
         stats = []
 
-    train_dataset, test_dataset, valid_dataset, scaler = create_dataset(args)
+    if not args.infer:
+        train_dataset, test_dataset, valid_dataset, scaler = create_dataset(args)
+        print('Train dataset: %i elements - Test dataset: %i elements - Validation dataset: %i elements' % (len(train_dataset),len(test_dataset),len(valid_dataset)))
+    else:
+        test_dataset, scaler = create_dataset(args)
+        print('Infer dataset: %i elements' % (len(test_dataset)))
 
-    print('Train dataset: %i elements - Test dataset: %i elements - Validation dataset: %i elements' % (len(train_dataset),len(test_dataset),len(valid_dataset)))
     ptnCloudEmbedder = pointnet.CloudEmbedder(args)
     scheduler = MultiStepLR(optimizer, milestones=args.lr_steps, gamma=args.lr_decay, last_epoch=args.start_epoch-1)
 
@@ -206,7 +214,7 @@ def main():
             embeddings = ptnCloudEmbedder.run(model, *clouds_data)
             outputs = model.ecc(embeddings)
             
-            loss = nn.functional.cross_entropy(outputs, Variable(label_mode))
+            loss = nn.functional.cross_entropy(outputs, Variable(label_mode), weight=dbinfo["class_weights"])
 
             loss.backward()
             ptnCloudEmbedder.bw_hook()
@@ -257,7 +265,7 @@ def main():
             embeddings = ptnCloudEmbedder.run(model, *clouds_data)
             outputs = model.ecc(embeddings)
             
-            loss = nn.functional.cross_entropy(outputs, Variable(label_mode))
+            loss = nn.functional.cross_entropy(outputs, Variable(label_mode), weight=dbinfo["class_weights"])
             loss_meter.add(loss.item()) 
 
             o_cpu, t_cpu, tvec_cpu = filter_valid(outputs.data.cpu().numpy(), label_mode_cpu.numpy(), label_vec_cpu.numpy())
@@ -315,6 +323,41 @@ def main():
         return meter_value(acc_meter), confusion_matrix.get_overall_accuracy(), confusion_matrix.get_average_intersection_union(), per_class_iou, predictions,  confusion_matrix.get_mean_class_accuracy(), confusion_matrix.confusion_matrix
 
     ############
+    def infer():
+        """ Evaluated model on test set in an extended way: computes estimates over multiple samples of point clouds and stores predictions """
+        model.eval()
+
+        collected, predictions = defaultdict(list), {}
+        # collect predictions over multiple sampling seeds
+        for ss in range(args.test_multisamp_n):
+            test_dataset_ss = create_dataset(args, ss)[0]
+            loader = torch.utils.data.DataLoader(test_dataset_ss, batch_size=1, collate_fn=spg.eccpc_collate, num_workers=args.nworkers)
+            if logging.getLogger().getEffectiveLevel() > logging.DEBUG: loader = tqdm(loader, ncols=65)
+
+            # iterate over dataset in batches
+            for bidx, (targets, GIs, clouds_data) in enumerate(loader):
+                model.ecc.set_info(GIs, args.cuda)
+                embeddings = ptnCloudEmbedder.run(model, *clouds_data)
+                outputs = model.ecc(embeddings)
+
+                fname = clouds_data[0][0][:clouds_data[0][0].rfind('.')]
+                collected[fname].append((outputs.data.cpu().numpy()))
+
+        # aggregate predictions (mean)
+        for fname, lst in collected.items():
+            o_cpu = np.asarray(lst)
+            if args.test_multisamp_n > 1:
+                o_cpu = np.mean(np.stack(o_cpu,0),0)
+            else:
+                o_cpu = o_cpu[0]
+            predictions[fname] = np.argmax(o_cpu,1)
+
+        return predictions
+
+
+
+
+    ############
     # Training loop
     try:
         best_iou = stats[-1]['best_iou']
@@ -325,71 +368,79 @@ def main():
     TEST_COLOR = '\033[0;93m'
     BEST_COLOR = '\033[0;92m'
     epoch = args.start_epoch
-    
-    for epoch in range(args.start_epoch, args.epochs):
-        print('Epoch {}/{} ({}):'.format(epoch, args.epochs, args.odir))
-        scheduler.step()
+    if not args.infer:
+        for epoch in range(args.start_epoch, args.epochs):
+            print('Epoch {}/{} ({}):'.format(epoch, args.epochs, args.odir))
+            scheduler.step()
 
-        acc, loss, oacc, avg_iou = train()
+            acc, loss, oacc, avg_iou = train()
 
-        print(TRAIN_COLOR + '-> Train Loss: %1.4f   Train accuracy: %3.2f%%' % (loss, acc))
+            print(TRAIN_COLOR + '-> Train Loss: %1.4f   Train accuracy: %3.2f%%' % (loss, acc))
 
-        new_best_model = False
-        if args.use_val_set:
-            acc_val, loss_val, oacc_val, avg_iou_val, avg_acc_val = eval(True)
-            print(VAL_COLOR + '-> Val Loss: %1.4f  Val accuracy: %3.2f%%  Val oAcc: %3.2f%%  Val IoU: %3.2f%%  best ioU: %3.2f%%' % \
-                 (loss_val, acc_val, 100*oacc_val, 100*avg_iou_val,100*max(best_iou,avg_iou_val)) + TRAIN_COLOR)
-            if avg_iou_val>best_iou: #best score yet on the validation set
-                print(BEST_COLOR + '-> New best model achieved!' + TRAIN_COLOR)
-                best_iou = avg_iou_val
-                new_best_model = True
+            new_best_model = False
+            if args.use_val_set:
+                acc_val, loss_val, oacc_val, avg_iou_val, avg_acc_val = eval(True)
+                print(VAL_COLOR + '-> Val Loss: %1.4f  Val accuracy: %3.2f%%  Val oAcc: %3.2f%%  Val IoU: %3.2f%%  best ioU: %3.2f%%' % \
+                    (loss_val, acc_val, 100*oacc_val, 100*avg_iou_val,100*max(best_iou,avg_iou_val)) + TRAIN_COLOR)
+                if avg_iou_val>best_iou: #best score yet on the validation set
+                    print(BEST_COLOR + '-> New best model achieved!' + TRAIN_COLOR)
+                    best_iou = avg_iou_val
+                    new_best_model = True
+                    torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict(), 'scaler': scaler},
+                        os.path.join(args.odir, 'model.pth.tar'))
+                    #stats.append({'epoch': epoch, 'acc': acc, 'loss': loss, 'oacc': oacc, 'avg_iou': avg_iou,'loss_val':loss_val, 'acc_val': acc_val, 'oacc_val': oacc_val, 'avg_iou_test': avg_iou_test, 'avg_acc_val': avg_acc_val, 'best_iou' : best_iou})
+            elif epoch % args.save_nth_epoch == 0 or epoch==args.epochs-1:
+                    torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict(), 'scaler': scaler},
+                        os.path.join(args.odir, 'model.pth.tar'))
+            #test every test_nth_epochs
+            #or test after each enw model (but skip the first 5 for efficiency)
+            if (not(args.use_val_set) and (epoch+1) % args.test_nth_epoch == 0)  \
+            or (args.use_val_set and new_best_model and epoch > 5): 
+                acc_test, loss_test, oacc_test, avg_iou_test, avg_acc_test = eval(False)
+                print(TEST_COLOR + '-> Test Loss: %1.4f  Test accuracy: %3.2f%%  Test oAcc: %3.2f%%  Test avgIoU: %3.2f%%' % \
+                    (loss_test, acc_test, 100*oacc_test, 100*avg_iou_test) + TRAIN_COLOR)
+            else:
+                acc_test, loss_test, oacc_test, avg_iou_test, avg_acc_test = 0, 0, 0, 0, 0
+
+            stats.append({'epoch': epoch, 'acc': acc, 'loss': loss, 'oacc': oacc, 'avg_iou': avg_iou, 'acc_test': acc_test, 'oacc_test': oacc_test, 'avg_iou_test': avg_iou_test, 'avg_acc_test': avg_acc_test, 'best_iou' : best_iou})
+
+            """
+            if epoch % args.save_nth_epoch == 0 or epoch==args.epochs-1:
+                with open(os.path.join(args.odir, 'trainlog.json'), 'w') as outfile:
+                    json.dump(stats, outfile,indent=4)
                 torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict(), 'scaler': scaler},
-                       os.path.join(args.odir, 'model.pth.tar'))
-        elif epoch % args.save_nth_epoch == 0 or epoch==args.epochs-1:
-                torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict(), 'scaler': scaler},
-                       os.path.join(args.odir, 'model.pth.tar'))
-        #test every test_nth_epochs
-        #or test after each enw model (but skip the first 5 for efficiency)
-        if (not(args.use_val_set) and (epoch+1) % args.test_nth_epoch == 0)  \
-           or (args.use_val_set and new_best_model and epoch > 5): 
-            acc_test, loss_test, oacc_test, avg_iou_test, avg_acc_test = eval(False)
-            print(TEST_COLOR + '-> Test Loss: %1.4f  Test accuracy: %3.2f%%  Test oAcc: %3.2f%%  Test avgIoU: %3.2f%%' % \
-                 (loss_test, acc_test, 100*oacc_test, 100*avg_iou_test) + TRAIN_COLOR)
-        else:
-            acc_test, loss_test, oacc_test, avg_iou_test, avg_acc_test = 0, 0, 0, 0, 0
-
-        stats.append({'epoch': epoch, 'acc': acc, 'loss': loss, 'oacc': oacc, 'avg_iou': avg_iou, 'acc_test': acc_test, 'oacc_test': oacc_test, 'avg_iou_test': avg_iou_test, 'avg_acc_test': avg_acc_test, 'best_iou' : best_iou})
-
-        """
-        if epoch % args.save_nth_epoch == 0 or epoch==args.epochs-1:
-            with open(os.path.join(args.odir, 'trainlog.json'), 'w') as outfile:
-                json.dump(stats, outfile,indent=4)
-            torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict(), 'scaler': scaler},
-                       os.path.join(args.odir, 'model.pth.tar'))
-        """
+                        os.path.join(args.odir, 'model.pth.tar'))
+            """
+            
+            if math.isnan(loss): break
         
-        if math.isnan(loss): break
-    
-        if len(stats)>0:
-            with open(os.path.join(args.odir, 'trainlog.json'), 'w') as outfile:
-                json.dump(stats, outfile, indent=4)
+            if len(stats)>0:
+                with open(os.path.join(args.odir, 'trainlog.json'), 'w') as outfile:
+                    json.dump(stats, outfile, indent=4)
 
-    if args.use_val_set :
-        args.resume = args.odir + '/model.pth.tar'
-        model, optimizer, stats = resume(args, dbinfo)
-        torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict()},
-                       os.path.join(args.odir, 'model.pth.tar'))
+        if args.use_val_set :
+            args.resume = args.odir + '/model.pth.tar'
+            model, optimizer, stats = resume(args, dbinfo)
+            torch.save({'epoch': epoch + 1, 'args': args, 'state_dict': model.state_dict(), 'optimizer' : optimizer.state_dict()},
+                        os.path.join(args.odir, 'model.pth.tar'))
+        
+        # Final evaluation
+        if args.test_multisamp_n>0 and 'test' in args.db_test_name:
+            acc_test, oacc_test, avg_iou_test, per_class_iou_test, predictions_test, avg_acc_test, confusion_matrix = eval_final()
+            print('-> Multisample {}: Test accuracy: {}, \tTest oAcc: {}, \tTest avgIoU: {}, \tTest mAcc: {}'.format(args.test_multisamp_n, acc_test, oacc_test, avg_iou_test, avg_acc_test))
+            with h5py.File(os.path.join(args.odir, 'predictions_'+args.db_test_name+'.h5'), 'w') as hf:
+                for fname, o_cpu in predictions_test.items():
+                    hf.create_dataset(name=fname, data=o_cpu) #(0-based classes)
+            with open(os.path.join(args.odir, 'scores_'+args.db_test_name+'.json'), 'w') as outfile:
+                json.dump([{'epoch': args.start_epoch, 'acc_test': acc_test, 'oacc_test': oacc_test, 'avg_iou_test': avg_iou_test, 'per_class_iou_test': per_class_iou_test, 'avg_acc_test': avg_acc_test}], outfile)
+            np.save(os.path.join(args.odir, 'pointwise_cm.npy'), confusion_matrix)
     
-    # Final evaluation
-    if args.test_multisamp_n>0 and 'test' in args.db_test_name:
-        acc_test, oacc_test, avg_iou_test, per_class_iou_test, predictions_test, avg_acc_test, confusion_matrix = eval_final()
-        print('-> Multisample {}: Test accuracy: {}, \tTest oAcc: {}, \tTest avgIoU: {}, \tTest mAcc: {}'.format(args.test_multisamp_n, acc_test, oacc_test, avg_iou_test, avg_acc_test))
-        with h5py.File(os.path.join(args.odir, 'predictions_'+args.db_test_name+'.h5'), 'w') as hf:
-            for fname, o_cpu in predictions_test.items():
-                hf.create_dataset(name=fname, data=o_cpu) #(0-based classes)
-        with open(os.path.join(args.odir, 'scores_'+args.db_test_name+'.json'), 'w') as outfile:
-            json.dump([{'epoch': args.start_epoch, 'acc_test': acc_test, 'oacc_test': oacc_test, 'avg_iou_test': avg_iou_test, 'per_class_iou_test': per_class_iou_test, 'avg_acc_test': avg_acc_test}], outfile)
-        np.save(os.path.join(args.odir, 'pointwise_cm.npy'), confusion_matrix)
+    else:
+        if args.test_multisamp_n>0 :
+            predictions_test = infer()
+            with h5py.File(os.path.join(args.odir, 'predictions_'+args.db_test_name+'.h5'), 'w') as hf:
+                for fname, o_cpu in predictions_test.items():
+                    hf.create_dataset(name=fname, data=o_cpu) #(0-based classes)
 
 def resume(args, dbinfo):
     """ Loads model and optimizer state from a previous checkpoint. """

@@ -59,8 +59,8 @@ for pc in names:
                 small_pcd.colors = o3d.utility.Vector3dVector(np.asarray(pcd.colors)[k*STEP: ])
             except:
                 pass
-        try:
+        if not pc in ["ajaccio_2.ply","ajaccio_57.ply", "dijon_9.ply"]:
             classes = np.asarray(small_pcd.colors)[:,0].astype(np.uint8)
-            write_ply(path + pc[:-4] + '/' + pc[:-4] + '_' + str(k) + '.ply', np.hstack((np.asarray(small_pcd.points), classes.reshape(-1,1))), ['x', 'y', 'z', 'class'])
-        except:
+            write_ply(path + pc[:-4] + '/' + pc[:-4] + '_' + str(k) + '.ply', np.hstack((np.asarray(small_pcd.points)[classes != 0], classes.reshape(-1,1)[classes != 0])), ['x', 'y', 'z', 'class'])
+        else:
             write_ply(path + pc[:-4] + '/' + pc[:-4] + '_' + str(k) + '.ply', np.asarray(small_pcd.points), ['x', 'y', 'z'])

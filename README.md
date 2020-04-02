@@ -18,15 +18,12 @@ by Loic Landrieu and Mohamed Boussaha (CVPR2019),
 
 <img src="http://recherche.ign.fr/llandrieu/SPG/ssp.png" width="900">
 
-## We are recruting! A PhD student for an extension of SPG to 4D data, see the [proposal](http://recherche.ign.fr/llandrieu/PhD_proposal_READY3D.pdf).
-
 
 ## Code structure
 * `./partition/*` - Partition code (geometric partitioning and superpoint graph construction using handcrafted features)
 * `./supervized_partition/*` - Supervized partition code (partitioning with learned features)
 * `./learning/*` - Learning code (superpoint embedding and contextual segmentation).
 
-To switch to the stable branch with only SPG, switch to [release](https://github.com/loicland/superpoint_graph/tree/release).
 
 ## Disclaimer
 Our partition method is inherently stochastic. Hence, even if we provide the trained weights, it is possible that the results that you obtain differ slightly from the ones presented in the paper.

@@ -381,15 +381,15 @@ def read_semantic3d_format2(data_file, n_class, file_label_path, voxel_width, ve
     else:
         return xyz, rgb
 #------------------------------------------------------------------------------
-def read_ParisLille3D_format(filename):
+def read_ParisLille3D_format(filename, label=True):
     """convert from a ply file. include the label and the object number"""
     #---read the ply file--------
     plydata = PlyData.read(filename)
     xyz = np.stack([plydata['vertex'][n] for n in['x', 'y', 'z']], axis=1)
-    try:
+    if label:
         labels = plydata['vertex']['class']
         return xyz, labels
-    except ValueError:
+    else:
         return xyz
 #------------------------------------------------------------------------------
 def read_ply(filename):
@@ -562,11 +562,13 @@ def read_features(file_name):
         rgb = []
     source = data_file["source"][:]
     target = data_file["target"][:]
+    distances = data_file["distances"][:]
 
     #---set the graph---
     graph_nn = dict([("is_nn", True)])
     graph_nn["source"] = source
     graph_nn["target"] = target
+    graph_nn["distances"] = distances
     return geof, xyz, rgb, graph_nn, labels
 #------------------------------------------------------------------------------
 def write_spg(file_name, graph_sp, components, in_component):

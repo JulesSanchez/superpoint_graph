@@ -149,11 +149,11 @@ for folder in folders:
                 has_labels = ["Lille1_1/", "Lille1_2/", "Lille2/", "Paris/"]
 
                 if folder in has_labels:
-                    xyz, labels = read_ParisLille3D_format(data_file)
+                    xyz, labels = read_ParisLille3D_format(data_file,True)
                     if args.voxel_width > 0:
                         xyz, _, labels, _ = libply_c.prune(xyz.astype('f4'), args.voxel_width, np.zeros(xyz.shape,dtype='u1'), labels.astype('uint8'), np.zeros(1, dtype='uint8') , n_labels, 0)
                 else:
-                    xyz = read_ParisLille3D_format(data_file)
+                    xyz = read_ParisLille3D_format(data_file,False)
                     if args.voxel_width > 0:
                         xyz = libply_c.prune(xyz.astype('f4'), args.voxel_width, np.zeros(xyz.shape,dtype='u1'), np.array(1,dtype='u1'), np.array(1,dtype='u1'),0, 0)[0]
                     labels = []

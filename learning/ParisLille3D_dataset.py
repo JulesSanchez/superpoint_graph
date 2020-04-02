@@ -55,6 +55,25 @@ def get_datasets(args, test_seed_offset=0):
                                     functools.partial(spg.loader, train=False, args=args, db_path=args.PARISLILLE3D_PATH, test_seed_offset=test_seed_offset)),\
             scaler
 
+def get_datasets_inference(args, test_seed_offset=0):
+    """build training and testing set"""
+    all_directories  =["ajaccio_2/","ajaccio_57/", "dijon_9/"]
+    VAL_RATIO = args.val_split
+    # Load superpoints graphs
+    inferList = []
+    for n in all_directories:
+        nameFiles = os.listdir(args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n )
+        for k in nameFiles:
+            inferList.append(spg.spg_reader(args, args.PARISLILLE3D_PATH + '/superpoint_graphs/' + n + os.path.splitext(k)[0]+ '.h5', True))
+
+    # Normalize edge features
+    if args.spg_attribs01:
+       inferList, _, scaler = spg.scaler01(inferList, inferList)
+
+    return tnt.dataset.ListDataset([spg.spg_to_igraph(*tlist) for tlist in inferList],
+                                    functools.partial(spg.loader, train=False, args=args, db_path=args.PARISLILLE3D_PATH)), \
+            scaler
+
 def get_info(args):
     edge_feats = 0
     for attrib in args.edge_attribs.split(','):
@@ -63,10 +82,18 @@ def get_info(args):
             edge_feats += 3
         else:
             edge_feats += 1
+    if args.loss_weights == 'none':
+        weights = np.ones((10,),dtype='f4')
+    else:
+        weights = h5py.File(args.PARISLILLE3D_PATH + "/parsed/class_count.h5")["class_count"][:].astype('f4')
+        weights = weights.mean()/weights
+    if args.loss_weights == 'sqrt':
+        weights = np.sqrt(weights)
 
     return {
         'node_feats': 11 if args.pc_attribs=='' else len(args.pc_attribs),
         'edge_feats': edge_feats,
+        'class_weights' : weights,
         'classes': 10, 
         'inv_class_map': {0 :"unclassified",
                         1 :"ground",
