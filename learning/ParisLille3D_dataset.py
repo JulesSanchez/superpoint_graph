@@ -26,7 +26,7 @@ import spg
 
 def get_datasets(args, test_seed_offset=0):
     """build training and testing set"""
-    all_directories  =["Lille1_1/","Lille1_2/","Paris/", "Lille2/"]
+    all_directories  = ["Lille1_1/","Lille1_2/","Paris/", "Lille2/"]
     VAL_RATIO = args.val_split
     # Load superpoints graphs
     testlist, trainlist, validlist = [], [], []
@@ -57,7 +57,7 @@ def get_datasets(args, test_seed_offset=0):
 
 def get_datasets_inference(args, test_seed_offset=0):
     """build training and testing set"""
-    all_directories  =["ajaccio_2/","ajaccio_57/", "dijon_9/"]
+    all_directories  = ["ajaccio_2/","ajaccio_57/", "dijon_9/"]
     VAL_RATIO = args.val_split
     # Load superpoints graphs
     inferList = []
@@ -68,7 +68,7 @@ def get_datasets_inference(args, test_seed_offset=0):
 
     # Normalize edge features
     if args.spg_attribs01:
-       inferList, _, scaler = spg.scaler01(inferList, inferList)
+       inferList, _, _, scaler = spg.scaler01(inferList, inferList)
 
     return tnt.dataset.ListDataset([spg.spg_to_igraph(*tlist) for tlist in inferList],
                                     functools.partial(spg.loader, train=False, args=args, db_path=args.PARISLILLE3D_PATH)), \

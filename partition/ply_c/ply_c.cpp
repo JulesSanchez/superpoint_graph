@@ -379,13 +379,33 @@ PyObject *  prune(const bpn::ndarray & xyz ,float voxel_size, const bpn::ndarray
     return to_py_tuple::convert(Custom_tuple(pruned_xyz,pruned_rgb, pruned_labels, pruned_objects));
 }
 
+enum FeatureSet {
+    basic = 0,
+    /// add more covariance features
+    medium = 1,
+};
 
 
-PyObject * compute_geof(const bpn::ndarray & xyz ,const bpn::ndarray & target, int k_nn)
+inline float _xlogx_func(float& lam) {
+    return .5 * sqrtf(lam) * logf(lam);
+}
+
+
+PyObject * compute_geof(const bpn::ndarray & xyz ,const bpn::ndarray & target,
+                        int k_nn, int set_=0)
 {//compute the following geometric features (geof) features of a point cloud:
  //linearity planarity scattering verticality
+ //TODO ADD MORE FEATURES ?
+    auto set = static_cast<FeatureSet>(set_);
     std::size_t n_ver = bp::len(xyz);
-    std::vector< std::vector< float > > geof(n_ver, std::vector< float >(4,0));
+    std::size_t num_features;
+    if (set == FeatureSet::basic) {
+        num_features = 4;
+    }
+    else if (set == FeatureSet::medium) {
+        num_features = 9;
+    }
+    std::vector< std::vector< float > > geof(n_ver, std::vector< float >(num_features, 0));
     //--- read numpy array data---
     const uint32_t * target_data = reinterpret_cast<uint32_t*>(target.get_data());
     const float * xyz_data = reinterpret_cast<float*>(xyz.get_data());
@@ -444,11 +464,28 @@ PyObject * compute_geof(const bpn::ndarray & xyz ,const bpn::ndarray & target, i
         float norm = sqrt(unary_vector[0] * unary_vector[0] + unary_vector[1] * unary_vector[1]
                         + unary_vector[2] * unary_vector[2]);
         float verticality = unary_vector[2] / norm;
+
+
         //---fill the geof vector---
         geof[i_ver][0] = linearity;
         geof[i_ver][1] = planarity;
         geof[i_ver][2] = scattering;
         geof[i_ver][3] = verticality;
+        
+        // EXTENDED FEATURES
+        if (set >= FeatureSet::medium) {
+            float omnivariance = powf(sqrtf(lambda[0]*lambda[1]*lambda[2]), 1./3.);
+            float anisotropy = (sqrtf(lambda[0]) - sqrtf(lambda[2])) / sqrtf(lambda[0]);
+            float eigsum = sqrtf(lambda[0]) + sqrtf(lambda[1]) + sqrtf(lambda[2]);
+            float curvature = sqrtf(lambda[2]) / eigsum;
+            float eigenentropy = -(_xlogx_func(lambda[0]) + _xlogx_func(lambda[1]) + _xlogx_func(lambda[2]));
+
+            geof[i_ver][4] = omnivariance;
+            geof[i_ver][5] = anisotropy;
+            geof[i_ver][6] = eigsum;
+            geof[i_ver][7] = curvature;
+            geof[i_ver][8] = eigenentropy;
+        }
         //---progression---
         s_ver++;//if run in parellel s_ver behavior is udnefined, but gives a good indication of progress
         if (s_ver % 10000 == 0)
