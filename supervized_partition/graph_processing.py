@@ -39,6 +39,10 @@ def main():
     parser.add_argument('--compute_geof', default=1, type=int, help='compute hand-crafted features of the local geometry')
     parser.add_argument('--k_nn_local', default=20, type=int, help='number of neighbors to describe the local geometry')
     parser.add_argument('--k_nn_adj', default=5, type=int, help='number of neighbors for the adjacency graph')
+    parser.add_argument('--k_nn_featset', default=0, type=int,
+                        help="level of features to extract from the KNN graph. "
+                        "0 is the basic level of features from the original paper (4 overall). "
+                        "1 uses more covariance features (9 features overall).")
     parser.add_argument('--voxel_width', default=0.03, type=float, help='voxel size when subsampling (in m)')
     parser.add_argument('--plane_model', default=1, type=int, help='uses a simple plane model to derive elevation')
     parser.add_argument('--use_voronoi', default=0.0, type=float, help='uses the Voronoi graph in combination to knn to build the adjacency graph, useful for sparse aquisitions. If 0., do not use voronoi. If >0, then is the upper length limit for an edge to be kept. ')
@@ -173,7 +177,7 @@ def main():
                        , (is_transition==0).astype('uint8'), 0)
                     
                 if (args.compute_geof):
-                    geof = libply_c.compute_geof(xyz, local_neighbors, args.k_nn_local).astype('float32')
+                    geof = libply_c.compute_geof(xyz, local_neighbors, args.k_nn_local, args.k_nn_featset).astype('float32')
                     geof[:,3] = 2. * geof[:,3]
                 else:
                     geof = 0

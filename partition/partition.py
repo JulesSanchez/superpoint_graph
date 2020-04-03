@@ -22,6 +22,10 @@ parser.add_argument('--ROOT_PATH', default='datasets/s3dis')
 parser.add_argument('--dataset', default='s3dis', help='s3dis/sema3d/your_dataset')
 parser.add_argument('--k_nn_geof', default=45, type=int, help='number of neighbors for the geometric features')
 parser.add_argument('--k_nn_adj', default=10, type=int, help='adjacency structure for the minimal partition')
+parser.add_argument('--k_nn_featset', default=0, type=int,
+                    help="level of features to extract from the KNN graph. "
+                    "0 is the basic level of features from the original paper (4 overall). "
+                    "1 uses more covariance features (9 features overall).")
 parser.add_argument('--lambda_edge_weight', default=1., type=float, help='parameter determine the edge weight for minimal part.')
 parser.add_argument('--reg_strength', default=0.1, type=float, help='regularization strength for the minimal partition')
 parser.add_argument('--d_se_max', default=0, type=float, help='max length of super edges')
@@ -173,7 +177,7 @@ for folder in folders:
             #---compute 10 nn graph-------
             graph_nn, target_fea = compute_graph_nn_2(xyz, args.k_nn_adj, args.k_nn_geof)
             #---compute geometric features-------
-            geof = libply_c.compute_geof(xyz, target_fea, args.k_nn_geof).astype('float32')
+            geof = libply_c.compute_geof(xyz, target_fea, args.k_nn_geof, args.k_nn_featset).astype('float32')
             end = timer()
             times[0] = times[0] + end - start
             del target_fea
