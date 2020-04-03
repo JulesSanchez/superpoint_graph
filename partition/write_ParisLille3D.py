@@ -52,7 +52,7 @@ for area in test_folders:
     labels_name = []
     for file in files:
         file_name = os.path.splitext(os.path.basename(file))[0]
-        file_name_short = '_'.join(file_name.split('_')[:2])
+        file_name_short = '_'.join(file_name.split('_')[:3])
         data_file  = data_folder + file_name + ".ply"
         fea_file   = fea_folder  + file_name_short + '.h5'
         spg_file   = spg_folder  + file_name_short + '.h5' 
@@ -65,7 +65,7 @@ for area in test_folders:
         graph_sp, components, in_component = read_spg(spg_file)
         n_ver = xyz.shape[0]
         del geof, rgb, graph_nn, l, graph_sp
-        labels_red = np.array(local_res_file.get(area + file_name_short))
+        labels_red = np.array(local_res_file.get(file_name_short))
         print("    upsampling...")
         labels_full = reduced_labels2full(labels_red, components, n_ver)
         xyz_up = read_ParisLille3D_format(data_file,False)
