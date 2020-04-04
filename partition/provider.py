@@ -59,7 +59,7 @@ def prediction2ply(filename, xyz, prediction, n_label, dataset):
     if len(prediction.shape) > 1 and prediction.shape[1] > 1:
         prediction = np.argmax(prediction, axis = 1)
     color = np.zeros(xyz.shape)
-    for i_label in range(0, n_label + 1):
+    for i_label in range(0, n_label):
         color[np.where(prediction == i_label), :] = get_color_from_label(i_label, dataset)
     prop = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
     vertex_all = np.empty(len(xyz), dtype=prop)
@@ -180,7 +180,7 @@ def get_color_from_label(object_label, dataset):
             6: [ 148,   0, 211], 
             7: [   0, 255, 255], 
             8: [ 255,   8, 127], 
-            9: [ 0,   0, 127], 
+            9: [ 0,   0, 127]
             }.get(object_label, -1)
     elif (dataset == 'custom_dataset'): #Custom set
         object_label =  {

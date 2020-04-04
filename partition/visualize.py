@@ -43,6 +43,8 @@ if args.dataset == 'sema3d':
     n_labels = 8   
 if args.dataset == 'vkitti':
     n_labels = 13
+if args.dataset == 'ParisLille3D':
+    n_labels = 10  
 if args.dataset == 'custom_dataset':
     n_labels = 10    
 #---load the values------------------------------------------------------------
@@ -51,6 +53,7 @@ if not os.path.isfile(fea_file) or args.supervized_partition:
     fea_file   = root + "features_supervision/"          + folder + file_name + '.h5'
 spg_file   = root + "superpoint_graphs/" + folder + file_name + '.h5'
 ply_folder = root + "clouds/"            + folder 
+data_folder = root + "data/"            + folder 
 ply_file   = ply_folder                  + file_name
 res_file   = args.res_file + '.h5'
 
@@ -71,7 +74,8 @@ if res_out or err_out:
     if not os.path.isfile(res_file):
         raise ValueError("%s does not exist and is needed to output the result ply" % res_file) 
     try:
-        pred_red  = np.array(h5py.File(res_file, 'r').get(folder + file_name))        
+        pred_red  = np.array(h5py.File(res_file, 'r').get(folder + file_name))    
+        print(h5py.File(res_file, 'r').keys())    
         if (len(pred_red) != len(components)):
             raise ValueError("It looks like the spg is not adapted to the result file") 
         pred_full = reduced_labels2full(pred_red, components, len(xyz))
@@ -113,6 +117,10 @@ if res_out and bool(args.upsample):
     elif args.dataset=='sema3d':#really not recommended unless you are very confident in your hardware
         data_file  = data_folder + file_name + ".txt"
         xyz_up, rgb_up = read_semantic3d_format(data_file, 0, '', 0, args.ver_batch)
+    elif args.dataset=='ParisLille3D':
+        data_file  = data_folder + file_name + ".ply"
+        xyz_up = read_ParisLille3D_format(data_file, 0)
+        rgb_up = []
     elif args.dataset=='custom_dataset':
         data_file  = data_folder + file_name + ".ply"
         xyz_up, rgb_up = read_ply(data_file)
