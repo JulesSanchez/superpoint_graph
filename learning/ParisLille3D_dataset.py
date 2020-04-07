@@ -130,7 +130,9 @@ def preprocess_pointclouds(PARISLILLE3D_PATH):
                 xyz = f['xyz'][:]
                 #rgb = f['rgb'][:].astype(np.float)
                 rgb = np.empty_like(xyz)
-                elpsv = np.stack([ f['xyz'][:,2][:], f['geof'][:,0][:], f['geof'][:,1][:], f['geof'][:,2][:], f['geof'][:,3][:] ], axis=1)
+                # elpsv = np.stack([ f['xyz'][:,2][:], f['geof'][:,0][:], f['geof'][:,1][:], f['geof'][:,2][:], f['geof'][:,3][:] ], axis=1)
+                elpsv = np.append(f['xyz'][:,[2]][:], f['geof'][:], axis=1)
+                
 
                 # rescale to [-0.5,0.5]; keep xyz
                 #warning - to use the trained model, make sure the elevation is comparable
