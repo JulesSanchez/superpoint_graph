@@ -72,7 +72,7 @@ for area in test_folders:
         labels_full = reduced_labels2full(labels_red, components, n_ver)
         xyz_up = read_ParisLille3D_format(data_file,False)
         labels_ups = interpolate_labels(xyz_up, xyz, labels_full, args.ver_batch)
-        np.savetxt(label_file, labels_ups, delimiter=' ', fmt='%d')   # X is an array
+        np.savetxt(label_file, labels_ups+1, delimiter=' ', fmt='%d')   # X is an array
     print("     Concatenate into output file...")
     labels_name.sort()
     label_file = labels_folder + area[:-1] + ".labels"
