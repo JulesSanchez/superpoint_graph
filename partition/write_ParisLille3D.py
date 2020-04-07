@@ -23,8 +23,8 @@ args = parser.parse_args()
 root = args.PARISLILLE3D_PATH+'/'
 res_folder  = './' + args.odir + '/'
 #list of subfolders to be processed
-test_folders = ["ajaccio_2/","ajaccio_57/", "dijon_9/"]
-res_file = h5py.File(res_folder + 'predictions_test' + '.h5', 'r')   
+test_folders = ["Paris/"]
+res_file = h5py.File(res_folder + 'predictions_test_2' + '.h5', 'r')   
 for area in test_folders:
 #------------------------------------------------------------------------------
     print("=================\n   " + area + "\n=================")

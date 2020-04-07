@@ -212,8 +212,8 @@ def main():
         raise NotImplementedError('Unknown dataset ' + args.dataset)
 
     # Create model and optimizer
-    if args.resume != '':
-        if args.resume=='RESUME': args.resume = args.odir + '/model.pth.tar'
+    if args.resume != '' or args.infer:
+        if args.resume=='RESUME' or args.infer: args.resume = args.odir + '/model.pth.tar'
         model, optimizer, stats = resume(args, dbinfo)
     else:
         model = create_model(args, dbinfo)
