@@ -17,27 +17,27 @@ We expect the following folder tree:
                     |Paris.ply
 
 * Preprocessing as point clouds are too big
-```bash
-python utils/crop.py --n_train 5 --n_test 5 --ROOT_PATH datasets/ParisLille-3D
-```
+    ```bash
+    python utils/crop.py --n_train 5 --n_test 5 --ROOT_PATH datasets/ParisLille-3D
+    ```
 * Make partition
-```bash
-python partition/partition.py --dataset ParisLille3D --ROOT_PATH datasets/ParisLille-3D --reg_strength 0.8 --ver_batch 5000000 --voxel_width 0.03
-```
+    ```bash
+    python partition/partition.py --dataset ParisLille3D --ROOT_PATH datasets/ParisLille-3D --reg_strength 0.8 --ver_batch 5000000 --voxel_width 0.03
+    ```
 * Prepare dataset
-```bash
-python learning/ParisLille3D_dataset.py --PARISLILLE3D_PATH datasets/ParisLille-3D
-```
+    ```bash
+    python learning/ParisLille3D_dataset.py --PARISLILLE3D_PATH datasets/ParisLille-3D
+    ```
 * Train from scratch (we assume a GPU is available)
     ```bash
     CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --epochs 150 --lr_steps '[35, 70, 105]' --test_nth_epoch 300 --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-3 --val_split 0.3 --loss_weights none
     ```  
   * The loss function can be specified with the `--loss` optional argument. Accepted values are `crossentropy`, `dice` and `combined`
 * Inference on test set (we assume a GPU is available)
-```bash
-CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-2 --infer 1
-```
+    ```bash
+    CUDA_VISIBLE_DEVICES=0 python learning/main.py --dataset ParisLille3D --model_config 'gru_10,f_10' --pc_attribs xyzelpsv --odir "results/ParisLille-3D/trainval_best" --lr 1e-2 --infer 1
+    ```
 * Oversample to get labels for the point cloud before undersampling
-```bash
-python partition/write_ParisLille3D.py --odir "results/ParisLille-3D/trainval_best" 
-```
+    ```bash
+    python partition/write_ParisLille3D.py --odir "results/ParisLille-3D/trainval_best" 
+    ```
